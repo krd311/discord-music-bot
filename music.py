@@ -9,6 +9,8 @@ class music(commands.Cog):
         self.client = client
         self.links = []
         self.delay = 0
+        self.playTime = 0
+        self.songIndex = 0
 
     @commands.command()
     async def join(self, ctx):
@@ -31,21 +33,36 @@ class music(commands.Cog):
         print(ctx.voice_client.is_playing())
         print("\n")
         
+        ''' - if song is not already playing, play song
+            - take length of song
+            - check if entire length of song has been played
+            - if song is already playing, note how long we have to wait'''
+
         if ctx.voice_client.is_playing():
             self.links.append(url)
             linkClone = self.links[:]
-            for link in linkClone:
+            while True:
                 if not ctx.voice_client.is_playing():
-                    await self.playSong(ctx,link)
+                    # if there isn't anything playing, play the queue and move on after
+                    await self.playSong(ctx,self.links[self.songIndex])
+                    self.songIndex += 1
+                    await self.playSong(ctx,self.links[self.songIndex])
                 else:
-                    print(self.delay)
-                    time.sleep(self.delay)
+                    while ctx.voice_client.is_playing():
+                        # track time played
+                        time.sleep(1)
+                        self.playTime += 1
+                        # if the whole song has been played, play the next song
+                        if self.delay - self.playTime == 0:
+                            self.songIndex += 1
+                            await self.playSong(ctx, self.links[self.songIndex[songIndex]])
+                            
+
                     
         else:
             self.playing = True
             await ctx.send(f'currently playing {url}')
             await self.playSong(ctx, url)
-            await ctx.send("balls")
 
         print("\n")
         print(ctx.voice_client.is_playing())
@@ -64,7 +81,7 @@ class music(commands.Cog):
 
         with youtube_dl.YoutubeDL(YDL_OPTIONS) as ydl:
             info = ydl.extract_info(link, download=False)
-            self.delay = info['duration']
+            self.delay += info['duration']
             url2 = info['formats'][0]['url']
             source = await discord.FFmpegOpusAudio.from_probe(url2, **FFMPEG_OPTIONS)
             vc.play(source)
