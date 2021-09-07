@@ -1,6 +1,10 @@
 import discord
-from discord.ext import commands
 import music
+from discord.ext import commands
+from dotenv import load_dotenv
+import os
+
+load_dotenv('.env')
 
 cogs = [music]
 client = commands.Bot(command_prefix=".", intents = discord.Intents.all())
@@ -10,6 +14,6 @@ for i in range(len(cogs)):
 
 print("RUNNING")
 
-client.run("ODgwNjU4NTU1MjA2Nzg3MDcz.YShfMQ.UNRuUqNfqZkZ86W3irtFqpCyI2U")
+client.run(os.getenv('BOT_TOKEN'))
 
 

@@ -4,6 +4,8 @@ import youtube_dl
 import ffmpeg
 import time
 
+from youtube_dl.compat import _TreeBuilder
+
 class music(commands.Cog):
     def __init__(self, client):
         self.client = client
@@ -11,6 +13,8 @@ class music(commands.Cog):
         self.delay = 0
         self.playTime = 0
         self.songIndex = 0
+        self.playing = False
+        self.loop = False
 
     @commands.command()
     async def join(self, ctx):
@@ -29,50 +33,42 @@ class music(commands.Cog):
 
     @commands.command()
     async def play(self,ctx,url):
-        print("\n")
-        print(ctx.voice_client.is_playing())
-        print("\n")
-        
-        ''' - if song is not already playing, play song
-            - take length of song
-            - check if entire length of song has been played
-            - if song is already playing, note how long we have to wait'''
+        voice_channel = ctx.author.voice.channel
+        if ctx.voice_client is None:
+            await voice_channel.connect()
+            await ctx.send("Yo")
 
-        if ctx.voice_client.is_playing():
-            self.links.append(url)
-            linkClone = self.links[:]
-            while True:
-                if not ctx.voice_client.is_playing():
-                    # if there isn't anything playing, play the queue and move on after
-                    await self.playSong(ctx,self.links[self.songIndex])
-                    self.songIndex += 1
-                    await self.playSong(ctx,self.links[self.songIndex])
-                else:
-                    while ctx.voice_client.is_playing():
-                        # track time played
-                        time.sleep(1)
-                        self.playTime += 1
-                        # if the whole song has been played, play the next song
-                        if self.delay - self.playTime == 0:
-                            self.songIndex += 1
-                            await self.playSong(ctx, self.links[self.songIndex[songIndex]])
-                            
+        self.links.append(url)
+        self.currentSong = self.links[self.songIndex]
+        self.currentIndex = self.songIndex
 
-                    
-        else:
-            self.playing = True
-            await ctx.send(f'currently playing {url}')
-            await self.playSong(ctx, url)
+        while True:
+            try:
+                print(self.loop)
+                await self.playSong(ctx,self.links[self.songIndex])
+                self.songIndex += 1
+                break
+            except:
+                time.sleep(1)
+                
+    @commands.command()
+    async def loop(self, ctx):
+        if self.loop == False:
+            self.loop = True
+        elif self.loop == True:
+            self.loop = False
+        while self.loop == True:
+            print(self.songIndex)
+            await self.play(ctx, self.links[self.songIndex-1])
 
-        print("\n")
-        print(ctx.voice_client.is_playing())
-        print("\n")
     @commands.command()
     async def skip(self, ctx):
         if not ctx.voice_client.is_playing():
             await ctx.send("I'm not playing anything!")
         else:
-            self.playSong(ctx, self.links[1])
+            ctx.voice_client.stop()
+            self.songIndex += 1
+            await self.play(ctx, self.links[self.songIndex])
 
     async def playSong(self, ctx, link):
         FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
@@ -81,7 +77,7 @@ class music(commands.Cog):
 
         with youtube_dl.YoutubeDL(YDL_OPTIONS) as ydl:
             info = ydl.extract_info(link, download=False)
-            self.delay += info['duration']
+            self.delay = info['duration']
             url2 = info['formats'][0]['url']
             source = await discord.FFmpegOpusAudio.from_probe(url2, **FFMPEG_OPTIONS)
             vc.play(source)
